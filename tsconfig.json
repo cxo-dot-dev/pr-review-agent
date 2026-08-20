@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["agent/**/*.ts", "evals/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+}

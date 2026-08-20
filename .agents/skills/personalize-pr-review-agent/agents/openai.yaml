@@ -1,0 +1,4 @@
+interface:
+  display_name: "Personalize PR Review Agent"
+  short_description: "Adapt review policy to your engineering stack"
+  default_prompt: "Use $personalize-pr-review-agent to tailor this PR review agent to my repositories, checks, tools, and risk priorities."
