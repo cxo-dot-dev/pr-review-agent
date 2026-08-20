@@ -1,0 +1,45 @@
+{
+  "name": "pr-review-agent",
+  "version": "0.1.0",
+  "description": "Self-hosted, policy-driven GitHub pull request risk review agent for Eve and Vercel.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cxo-dot-dev/pr-review-agent.git"
+  },
+  "keywords": [
+    "ai-agent",
+    "code-review",
+    "github",
+    "pull-requests",
+    "vercel"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "eve dev",
+    "build": "eve build",
+    "start": "eve start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "eval": "eve eval --strict",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "@vercel/connect": "0.6.0",
+    "ai": "7.0.47",
+    "eve": "0.29.4",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  },
+  "overrides": {
+    "nanoid": "3.3.18"
+  }
+}
