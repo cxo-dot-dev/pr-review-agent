@@ -1,11 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { slackReviewConfig } from "../agent/lib/config";
 import type { ApprovalDecision } from "../agent/lib/decision";
 import type { FinalRisk } from "../agent/lib/risk-policy";
 import {
   deterministicClientMessageId,
   notifySlackReviewReady,
   renderSlackReviewNotification,
-  reviewerMentions,
+  reviewerGroupMention,
   type SlackApiCaller,
 } from "../agent/lib/slack-review-notifier";
 import { snapshot } from "./fixtures";
@@ -13,7 +14,8 @@ import { snapshot } from "./fixtures";
 const config = {
   connectorUid: "slack/pr-review-agent",
   channelId: "C_REVIEW",
-  reviewerIds: ["U_REVIEWER_1", "U_REVIEWER_2"],
+  reviewerGroupId: "SGLOBAL",
+  repositoryReviewerGroupIds: { "acme/example-app": "SAPPTEAM" },
 } as const;
 
 const lowRisk: FinalRisk = {
@@ -28,12 +30,42 @@ const approved: ApprovalDecision = { disposition: "approve", blockers: [] };
 const summary =
   "Filters noisy browser telemetry without changing application behavior; reverting restores the prior reporting only.";
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("Slack PR review notifications", () => {
-  it("routes reviewer-ready PRs to every configured reviewer", () => {
-    expect(reviewerMentions("any-author", config)).toEqual([
-      "<@U_REVIEWER_1>",
-      "<@U_REVIEWER_2>",
-    ]);
+  it("routes by repository user group with a global fallback", () => {
+    expect(reviewerGroupMention("acme/example-app", config)).toBe("<!subteam^SAPPTEAM>");
+    expect(reviewerGroupMention("acme/other-app", config)).toBe("<!subteam^SGLOBAL>");
+    expect(reviewerGroupMention("acme/other-app", {
+      ...config,
+      reviewerGroupId: "",
+      repositoryReviewerGroupIds: {},
+    })).toBe("");
+  });
+
+  it("normalizes repository group configuration and drops malformed entries", () => {
+    vi.stubEnv("ENG_AGENT_SLACK_REVIEWER_GROUP_ID", "SGLOBAL");
+    vi.stubEnv(
+      "ENG_AGENT_SLACK_REPOSITORY_REVIEWER_GROUPS",
+      JSON.stringify({
+        "Acme/Example-App": " SAPPTEAM ",
+        invalid: "SNOOWNER",
+        "acme/unsafe": "<!channel>",
+      }),
+    );
+
+    expect(slackReviewConfig()).toMatchObject({
+      reviewerGroupId: "SGLOBAL",
+      repositoryReviewerGroupIds: { "acme/example-app": "SAPPTEAM" },
+    });
+  });
+
+  it("fails safely when repository group configuration is not JSON", () => {
+    vi.stubEnv("ENG_AGENT_SLACK_REPOSITORY_REVIEWER_GROUPS", "not-json");
+
+    expect(slackReviewConfig().repositoryReviewerGroupIds).toEqual({});
   });
 
   it("renders a concise low-risk approve-and-merge handoff without claiming the bot unlocks merge", () => {
@@ -51,7 +83,9 @@ describe("Slack PR review notifications", () => {
     );
 
     expect(message).toContain("✨ *Bot approved — human approval still required*");
-    expect(message).toContain("<@U_REVIEWER_1> <@U_REVIEWER_2> — either of you can take this.");
+    expect(message).toContain(
+      "<!subteam^SAPPTEAM> — review requested; GitHub remains the source of truth for ownership.",
+    );
     expect(message).toContain("<https://github.com/acme/example-app/pull/3559|#3559 Filter DoubleClick noise>");
     expect(message).toContain(`*TL;DR:* ${summary}`);
     expect(message).toContain("*Risk:* Low · checks green");
@@ -171,6 +205,18 @@ describe("Slack PR review notifications", () => {
     );
 
     expect(result).toEqual({ status: "skipped", reason: "channel_not_configured" });
+  });
+
+  it("posts a channel-only handoff when no reviewer group is configured", () => {
+    const message = renderSlackReviewNotification(
+      { snapshot: snapshot(), finalRisk: lowRisk, decision: approved, summary, confidence: 0.99 },
+      { ...config, reviewerGroupId: "", repositoryReviewerGroupIds: {} },
+    );
+
+    expect(message).toContain(
+      "Ready for human review — see GitHub review requests and CODEOWNERS for ownership.",
+    );
+    expect(message).not.toContain("<!subteam^");
   });
 
   it("posts once with the configured channel and deterministic id", async () => {

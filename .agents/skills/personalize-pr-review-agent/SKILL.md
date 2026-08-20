@@ -12,7 +12,7 @@ Configure the agent from evidence in the target repositories. Preserve its exact
 1. Read `README.md`, `.env.example`, `docs/risk-policy.md`, `agent/lib/config.ts`, `agent/lib/risk-policy.ts`, `agent/lib/risk-calibration.ts`, and `agent/skills/pr-risk-review/`.
 2. Inspect each target repository before editing. Identify languages, package managers, frameworks, database and migration tools, auth/payment providers, infrastructure paths, CI workflow names, generated files, test conventions, monorepo boundaries, and protected branches.
 3. Read [references/customization-map.md](references/customization-map.md) and build a short proposed mapping from observed stack surface to agent configuration.
-4. Ask only for decisions that cannot be inferred safely: repositories to allowlist, acceptable base branches, exact required checks, reviewers, and which consequences the team treats as human-only. Default uncertain sensitive surfaces to human-only.
+4. Ask only for decisions that cannot be inferred safely: repositories to allowlist, acceptable base branches, exact required checks, review ownership and Slack routing, and which consequences the team treats as human-only. Default uncertain sensitive surfaces to human-only.
 5. Update `.env.example` with realistic placeholders, never credentials or production IDs. Keep the runtime's empty repository default so an unconfigured deployment stays inert.
 6. Adapt path rules and calibration examples to observed architecture. Prefer consequence-based rules over vendor-name matching. Treat reads differently from mutations, and keep diff size separate from risk.
 7. Add or update focused tests for every new risk floor, human-only rule, constrained/generated path, and configuration behavior. Replace generic examples only when repository evidence supports better ones.
@@ -26,6 +26,7 @@ Configure the agent from evidence in the target repositories. Preserve its exact
 - Do not allowlist neutral/skipped checks without a concrete reason.
 - Do not lower thresholds merely to make an example PR auto-approvable.
 - Do not encode personal names or private channel IDs in source-controlled defaults.
+- Keep GitHub review requests and `CODEOWNERS` authoritative. Prefer channel-only Slack handoffs or maintained Slack user groups; do not source-control individual reviewer rosters.
 - Keep secrets in Vercel environment variables or Vercel Connect, never tracked files.
 - Require human review for ambiguous trust boundaries, durable mutations, destructive operations, and hard-to-recover production control-plane changes.
 

@@ -27,11 +27,17 @@ export interface SlackReviewNotificationInput {
   confidence: number;
 }
 
-export function reviewerMentions(
-  _authorLogin: string,
+export function reviewerGroupMention(
+  repository: string,
   config: ReturnType<typeof slackReviewConfig> = slackReviewConfig(),
-): readonly string[] {
-  return config.reviewerIds.map((id) => `<@${id}>`);
+): string {
+  const repositoryGroupId = config.repositoryReviewerGroupIds[repository.toLowerCase()];
+  const groupId = validSlackUserGroupId(repositoryGroupId)
+    ? repositoryGroupId
+    : validSlackUserGroupId(config.reviewerGroupId)
+      ? config.reviewerGroupId
+      : "";
+  return groupId ? `<!subteam^${groupId}>` : "";
 }
 
 export function renderSlackReviewNotification(
@@ -41,7 +47,8 @@ export function renderSlackReviewNotification(
   const { snapshot, finalRisk, decision, summary, confidence } = input;
   const pullRequest = snapshot.pullRequest;
   const author = pullRequest.user.login;
-  const mentions = reviewerMentions(author, config).join(" ");
+  const repository = `${snapshot.owner}/${snapshot.repo}`;
+  const reviewerGroup = reviewerGroupMention(repository, config);
   const url = `https://github.com/${snapshot.owner}/${snapshot.repo}/pull/${pullRequest.number}`;
   const label = `#${pullRequest.number} ${escapeSlackText(pullRequest.title)}`;
   const icon = decisionEmoji(decision, finalRisk.band);
@@ -52,11 +59,9 @@ export function renderSlackReviewNotification(
       : `${icon} *Human review required*`;
   const assignment = decision.disposition === "request_changes"
     ? "No reviewer handoff yet — the author needs to address the findings."
-    : mentions.length === 0
-      ? "Ready for a human reviewer."
-    : reviewerMentions(author, config).length > 1
-      ? `${mentions} — either of you can take this.`
-      : `${mentions} — this one is ready for you.`;
+    : reviewerGroup
+      ? `${reviewerGroup} — review requested; GitHub remains the source of truth for ownership.`
+      : "Ready for human review — see GitHub review requests and CODEOWNERS for ownership.";
 
   if (decision.disposition === "needs_human") {
     const guidance = formatNeedsHumanGuidance(decision.blockers, confidence);
@@ -153,6 +158,10 @@ export function deterministicClientMessageId(snapshot: PullRequestSnapshot): str
 
 function escapeSlackText(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+function validSlackUserGroupId(value: string | undefined): value is string {
+  return Boolean(value && /^S[A-Z0-9]+$/u.test(value));
 }
 
 function singleLine(value: string): string {

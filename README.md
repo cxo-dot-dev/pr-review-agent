@@ -119,7 +119,7 @@ vercel connect list
 vercel connect attach <slack-connector-id>
 ```
 
-Invite the Slack app to the destination channel and set the connector UID, channel ID, and comma-separated reviewer member IDs. Leave `ENG_AGENT_SLACK_REVIEW_CHANNEL` blank to disable Slack safely. See [docs/slack-review-notifications.md](docs/slack-review-notifications.md).
+Invite the Slack app to the destination channel and set the connector UID and channel ID. By default, Slack is a channel-only handoff: GitHub review requests and `CODEOWNERS` remain the source of truth for ownership. To notify a scalable reviewer pool, configure one maintained Slack user group globally or map repositories to different user groups. Leave `ENG_AGENT_SLACK_REVIEW_CHANNEL` blank to disable Slack safely. See [docs/slack-review-notifications.md](docs/slack-review-notifications.md).
 
 ### 5. Verify and deploy
 

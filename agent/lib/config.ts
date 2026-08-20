@@ -12,6 +12,29 @@ function csv(name: string, fallback: readonly string[]): readonly string[] {
     .filter(Boolean);
 }
 
+function repositoryReviewerGroups(name: string): Readonly<Record<string, string>> {
+  const value = process.env[name]?.trim();
+  if (!value) return {};
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .filter((entry): entry is [string, string] => {
+          const repository = entry[0].trim();
+          return (
+            /^[^/\s]+\/[^/\s]+$/u.test(repository) &&
+            typeof entry[1] === "string" &&
+            /^S[A-Z0-9]+$/u.test(entry[1].trim())
+          );
+        })
+        .map(([repository, groupId]) => [repository.trim().toLowerCase(), groupId.trim()]),
+    );
+  } catch {
+    return {};
+  }
+}
+
 export function runtimePolicy() {
   return {
     repositories: csv("ENG_AGENT_REPOSITORIES", []),
@@ -31,6 +54,9 @@ export function slackReviewConfig() {
   return {
     connectorUid: process.env.ENG_AGENT_SLACK_CONNECTOR ?? "slack/pr-review-agent",
     channelId: process.env.ENG_AGENT_SLACK_REVIEW_CHANNEL?.trim() ?? "",
-    reviewerIds: csv("ENG_AGENT_SLACK_REVIEWER_IDS", []),
+    reviewerGroupId: process.env.ENG_AGENT_SLACK_REVIEWER_GROUP_ID?.trim() ?? "",
+    repositoryReviewerGroupIds: repositoryReviewerGroups(
+      "ENG_AGENT_SLACK_REPOSITORY_REVIEWER_GROUPS",
+    ),
   } as const;
 }

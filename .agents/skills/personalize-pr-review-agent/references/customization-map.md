@@ -15,7 +15,7 @@ Use this checklist to translate repository evidence into PR Review Agent configu
 | Framework routes, server actions, workers, jobs | Medium rules | Runtime behavior gets at least the intended floor |
 | Monorepo packages and ownership boundaries | Path rules and instructions | Package-specific sensitive surfaces are covered |
 | Team confidence tolerance | `ENG_AGENT_MIN_CONFIDENCE` | Below-threshold result becomes `NEEDS HUMAN`, not higher risk |
-| Slack destination and reviewer IDs | Slack environment variables | Blank channel disables delivery; configured delivery is idempotent |
+| GitHub ownership, Slack destination, and reviewer groups | `CODEOWNERS`, GitHub review requests, and Slack environment variables | Blank channel disables delivery; no group gives a channel-only handoff; exact repository group overrides global fallback; delivery is idempotent |
 
 Keep `agent/skills/pr-risk-review/references/scoring.md`, `agent/lib/risk-calibration.ts`, tests, and `docs/risk-policy.md` consistent whenever rating or aggregation semantics change. Bump `POLICY_VERSION` for a deployed policy change so old exact-SHA assessments cannot be mistaken for current ones.
 
