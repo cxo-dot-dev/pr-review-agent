@@ -50,9 +50,8 @@ export default defineTool({
         version: RISK_CALIBRATION.version,
         minimumConfidence: policy.minimumConfidence,
         confidenceIsApprovalGate: true,
-        low: "0-24",
-        medium: "25-64",
-        high: "65-100",
+        levels: ["very_low", "low", "medium", "high"],
+        aggregation: "The overall risk is the highest of the five dimension ratings, deterministic policy floor, and finding severity.",
         calibration: RISK_CALIBRATION,
       },
     };

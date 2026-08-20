@@ -3,12 +3,13 @@ import type {
   RiskBand,
   RiskDimensions,
   RiskFinding,
+  RiskLevel,
 } from "./types";
 
 export interface PolicyFlag {
   code: string;
   reason: string;
-  scoreFloor: number;
+  levelFloor: RiskLevel;
   paths: readonly string[];
 }
 
@@ -26,7 +27,7 @@ export interface ReviewabilityAssessment {
 }
 
 export interface PolicyAssessment {
-  riskFloor: number;
+  riskFloor: RiskLevel;
   riskFlags: readonly PolicyFlag[];
   humanReviewRequirements: readonly HumanReviewRequirement[];
   reviewability: ReviewabilityAssessment;
@@ -43,10 +44,9 @@ export interface FinalRiskInput {
 }
 
 export interface FinalRisk {
-  score: number;
-  band: RiskBand;
-  modelScore: number;
-  policyFloor: number;
+  band: RiskLevel;
+  dimensionPeak: RiskLevel;
+  policyFloor: RiskLevel;
   confidenceBlocksApproval: boolean;
   promotedForFinding: RiskBand | null;
 }
@@ -105,18 +105,14 @@ export function calculatePolicyAssessment(files: readonly PullRequestFile[]): Po
 
   for (const [reason, pattern] of HIGH_PATH_RULES) {
     const paths = runtimeFiles.map((file) => file.filename).filter((path) => pattern.test(path));
-    if (paths.length > 0) riskFlags.push({ code: slug(reason), reason, scoreFloor: 70, paths });
+    if (paths.length > 0) riskFlags.push({ code: slug(reason), reason, levelFloor: "high", paths });
   }
 
   for (const [reason, pattern] of MEDIUM_PATH_RULES) {
     const paths = runtimeFiles.map((file) => file.filename).filter((path) => pattern.test(path));
     if (paths.length > 0) {
-      const scoreFloor =
-        reason === "sensitive enforcement surface" ||
-        reason === "authentication or authorization boundary"
-          ? 45
-          : 35;
-      riskFlags.push({ code: slug(reason), reason, scoreFloor, paths });
+      const levelFloor = "medium";
+      riskFlags.push({ code: slug(reason), reason, levelFloor, paths });
     }
   }
 
@@ -139,10 +135,10 @@ export function calculatePolicyAssessment(files: readonly PullRequestFile[]): Po
     );
   }
 
-  const riskFloor = riskFlags.reduce(
-    (score, flag) => Math.max(score, flag.scoreFloor),
+  const riskFloor = maxRiskLevel([
     baseFloor(files),
-  );
+    ...riskFlags.map((flag) => flag.levelFloor),
+  ]);
   return {
     riskFloor,
     riskFlags,
@@ -159,41 +155,38 @@ export function calculatePolicyAssessment(files: readonly PullRequestFile[]): Po
 }
 
 export function calculateFinalRisk(input: FinalRiskInput): FinalRisk {
-  const modelScore = clampInt(
-    input.dimensions.changeSurface +
-      input.dimensions.blastRadius +
-      input.dimensions.reversibility +
-      input.dimensions.dataSecurity +
-      input.dimensions.operationalRisk +
-      input.dimensions.verificationGap,
-    0,
-    100,
-  );
+  const dimensionPeak = maxRiskLevel(Object.values(input.dimensions));
   const highestFinding = highestFindingBand(input.findings);
-  const findingFloor = highestFinding === "high" ? 65 : highestFinding === "medium" ? 25 : 0;
-  const score = Math.max(modelScore, input.policy.riskFloor, findingFloor);
+  const findingFloor: RiskLevel = highestFinding ?? "very_low";
 
   return {
-    score,
-    band: riskBand(score),
-    modelScore,
+    band: maxRiskLevel([dimensionPeak, input.policy.riskFloor, findingFloor]),
+    dimensionPeak,
     policyFloor: input.policy.riskFloor,
     confidenceBlocksApproval: input.confidence < input.minimumConfidence,
-    promotedForFinding: findingFloor > 0 ? highestFinding : null,
+    promotedForFinding: highestFinding,
   };
 }
 
-export function riskBand(score: number): RiskBand {
-  if (score <= 24) return "low";
-  if (score <= 64) return "medium";
-  return "high";
+export function maxRiskLevel(levels: readonly RiskLevel[]): RiskLevel {
+  return levels.reduce(
+    (highest, level) => RISK_LEVEL_WEIGHT[level] > RISK_LEVEL_WEIGHT[highest] ? level : highest,
+    "very_low",
+  );
 }
 
-function baseFloor(files: readonly PullRequestFile[]): number {
-  if (files.length === 0) return 25;
-  if (files.every((file) => isDocumentation(file.filename))) return 5;
-  if (files.every((file) => isConstrainedSurface(file.filename))) return 8;
-  return 12;
+const RISK_LEVEL_WEIGHT: Readonly<Record<RiskLevel, number>> = {
+  very_low: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+};
+
+function baseFloor(files: readonly PullRequestFile[]): RiskLevel {
+  if (files.length === 0) return "medium";
+  if (files.every((file) => isDocumentation(file.filename))) return "very_low";
+  if (files.every((file) => isConstrainedSurface(file.filename))) return "very_low";
+  return "low";
 }
 
 function isDocumentation(path: string): boolean {
@@ -221,10 +214,6 @@ function highestFindingBand(findings: readonly RiskFinding[]): RiskBand | null {
   if (findings.some((finding) => finding.severity === "medium")) return "medium";
   if (findings.some((finding) => finding.severity === "low")) return "low";
   return null;
-}
-
-function clampInt(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, Math.round(value)));
 }
 
 function slug(value: string): string {

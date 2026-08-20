@@ -17,10 +17,9 @@ const config = {
 } as const;
 
 const lowRisk: FinalRisk = {
-  score: 15,
   band: "low",
-  modelScore: 15,
-  policyFloor: 12,
+  dimensionPeak: "low",
+  policyFloor: "low",
   confidenceBlocksApproval: false,
   promotedForFinding: "low",
 };
@@ -55,7 +54,7 @@ describe("Slack PR review notifications", () => {
     expect(message).toContain("<@U_REVIEWER_1> <@U_REVIEWER_2> — either of you can take this.");
     expect(message).toContain("<https://github.com/acme/example-app/pull/3559|#3559 Filter DoubleClick noise>");
     expect(message).toContain(`*TL;DR:* ${summary}`);
-    expect(message).toContain("*Risk:* 15/100 Low · checks green");
+    expect(message).toContain("*Risk:* Low · checks green");
     expect(message).toContain("*Why Low:* Contained and readily reversible.");
     expect(message).toContain(
       "*Next step:* PR Review Agent cannot merge. GitHub still needs one qualifying human approval.",
@@ -67,7 +66,7 @@ describe("Slack PR review notifications", () => {
     const message = renderSlackReviewNotification(
       {
         snapshot: snapshot(),
-        finalRisk: { ...lowRisk, score: 35, band: "medium" },
+        finalRisk: { ...lowRisk, band: "medium", dimensionPeak: "medium" },
         decision: { disposition: "needs_human", blockers: ["risk is medium, not low"] },
         summary: "Deletes retired Chat V1 code and inert API stubs; reverting restores the removed paths.",
         confidence: 0.95,
@@ -120,7 +119,7 @@ describe("Slack PR review notifications", () => {
     const message = renderSlackReviewNotification(
       {
         snapshot: snapshot(),
-        finalRisk: { ...lowRisk, score: 75, band: "high" },
+        finalRisk: { ...lowRisk, band: "high", dimensionPeak: "high" },
         decision: { disposition: "needs_human", blockers: ["risk is high, not low"] },
         summary,
         confidence: 0.95,
@@ -150,7 +149,7 @@ describe("Slack PR review notifications", () => {
     const result = await notifySlackReviewReady(
       {
         snapshot: snapshot(),
-        finalRisk: { ...lowRisk, score: 35, band: "medium" },
+        finalRisk: { ...lowRisk, band: "medium", dimensionPeak: "medium" },
         decision: {
           disposition: "request_changes",
           blockers: ["a medium or high finding exists"],

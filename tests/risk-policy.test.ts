@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateFinalRisk, calculatePolicyAssessment, riskBand } from "../agent/lib/risk-policy";
+import { calculateFinalRisk, calculatePolicyAssessment, maxRiskLevel } from "../agent/lib/risk-policy";
 
 const file = (filename: string, changes = 10) => ({
   filename,
@@ -10,25 +10,24 @@ const file = (filename: string, changes = 10) => ({
 });
 
 const lowDimensions = {
-  changeSurface: 3,
-  blastRadius: 2,
-  reversibility: 1,
-  dataSecurity: 0,
-  operationalRisk: 1,
-  verificationGap: 2,
-};
+  changeComplexity: "low",
+  blastRadius: "very_low",
+  dataSecurity: "very_low",
+  operationalRecovery: "very_low",
+  verification: "low",
+} as const;
 
 describe("risk policy", () => {
   it("keeps a small docs-only diff eligible for low risk", () => {
     const policy = calculatePolicyAssessment([file("docs/guide.md")]);
-    expect(policy.riskFloor).toBe(5);
+    expect(policy.riskFloor).toBe("very_low");
     expect(calculateFinalRisk({
       dimensions: lowDimensions,
       confidence: 0.98,
       findings: [],
       policy,
       minimumConfidence: 0.9,
-    })).toMatchObject({ score: 9, band: "low" });
+    })).toMatchObject({ dimensionPeak: "low", policyFloor: "very_low", band: "low" });
   });
 
   it.each([
@@ -38,13 +37,13 @@ describe("risk policy", () => {
     "src/webhooks/identity/account-sync.ts",
   ])("sets a high floor for %s", (path) => {
     const policy = calculatePolicyAssessment([file(path)]);
-    expect(policy.riskFloor).toBeGreaterThanOrEqual(70);
+    expect(policy.riskFloor).toBe("high");
     expect(policy.humanReviewRequirements).not.toHaveLength(0);
   });
 
   it("sets a medium floor for dependency and server behavior", () => {
-    expect(calculatePolicyAssessment([file("package.json")]).riskFloor).toBe(35);
-    expect(calculatePolicyAssessment([file("src/app/api/items/route.ts")]).riskFloor).toBe(35);
+    expect(calculatePolicyAssessment([file("package.json")]).riskFloor).toBe("medium");
+    expect(calculatePolicyAssessment([file("src/app/api/items/route.ts")]).riskFloor).toBe("medium");
   });
 
   it("keeps confidence separate from risk while medium findings promote the band", () => {
@@ -77,7 +76,7 @@ describe("risk policy", () => {
       file("docs/features/revenue-dashboard.md", 43),
     ];
     expect(calculatePolicyAssessment(files)).toMatchObject({
-      riskFloor: 12,
+      riskFloor: "low",
       riskFlags: [],
       humanReviewRequirements: [],
     });
@@ -86,7 +85,7 @@ describe("risk policy", () => {
   it("does not size-promote generated docs or changelog batches", () => {
     const files = Array.from({ length: 35 }, (_, index) => file(`docs/generated-${index}.html`, 120));
     expect(calculatePolicyAssessment(files)).toMatchObject({
-      riskFloor: 5,
+      riskFloor: "very_low",
       riskFlags: [],
       reviewability: { sufficient: true, reviewableFiles: 0, reviewableChanges: 0 },
     });
@@ -95,14 +94,14 @@ describe("risk policy", () => {
   it("keeps sensitive paths human-only without using size as a risk proxy", () => {
     const authorization = calculatePolicyAssessment([file("src/lib/authorization/policy.ts")]);
     const authentication = calculatePolicyAssessment([file("src/lib/auth/session.ts")]);
-    expect(authorization.riskFloor).toBe(45);
-    expect(authentication.riskFloor).toBe(45);
+    expect(authorization.riskFloor).toBe("medium");
+    expect(authentication.riskFloor).toBe("medium");
     expect(authorization.humanReviewRequirements[0]?.reason).toContain("authentication");
     expect(authentication.humanReviewRequirements[0]?.reason).toContain("authentication");
 
     const broad = Array.from({ length: 26 }, (_, index) => file(`src/features/chat-v2/module-${index}.ts`, 75));
     expect(calculatePolicyAssessment(broad)).toMatchObject({
-      riskFloor: 12,
+      riskFloor: "low",
       riskFlags: [],
       reviewability: { sufficient: true },
     });
@@ -113,7 +112,7 @@ describe("risk policy", () => {
       file(`src/features/chat-v2/module-${index}.ts`, 150),
     );
     expect(calculatePolicyAssessment(huge)).toMatchObject({
-      riskFloor: 12,
+      riskFloor: "low",
       reviewability: {
         sufficient: false,
         reviewableFiles: 76,
@@ -149,7 +148,7 @@ describe("risk policy", () => {
   it("does not make tests for sensitive code human-only", () => {
     const policy = calculatePolicyAssessment([file("src/lib/auth/session.test.ts", 300)]);
     expect(policy).toMatchObject({
-      riskFloor: 8,
+      riskFloor: "very_low",
       humanReviewRequirements: [],
       reviewability: { sufficient: true, reviewableFiles: 0, reviewableChanges: 0 },
     });
@@ -157,12 +156,12 @@ describe("risk policy", () => {
 
   it("does not path-promote ordinary frontend polish", () => {
     expect(calculatePolicyAssessment([file("src/components/onboarding/Hero.tsx", 80)])).toMatchObject({
-      riskFloor: 12,
+      riskFloor: "low",
       riskFlags: [],
     });
   });
 
-  it("promotes high findings to high and applies stable band boundaries", () => {
+  it("promotes high findings and aggregates by the highest consequential level", () => {
     const result = calculateFinalRisk({
       dimensions: lowDimensions,
       confidence: 0.99,
@@ -171,9 +170,25 @@ describe("risk policy", () => {
       minimumConfidence: 0.9,
     });
     expect(result.band).toBe("high");
-    expect(riskBand(24)).toBe("low");
-    expect(riskBand(25)).toBe("medium");
-    expect(riskBand(64)).toBe("medium");
-    expect(riskBand(65)).toBe("high");
+    expect(result.promotedForFinding).toBe("high");
+    expect(maxRiskLevel(["very_low", "low", "medium", "low"])).toBe("medium");
+    expect(maxRiskLevel(["very_low", "high", "low"])).toBe("high");
+  });
+
+  it("does not average away one high-risk area", () => {
+    const result = calculateFinalRisk({
+      dimensions: {
+        changeComplexity: "very_low",
+        blastRadius: "very_low",
+        dataSecurity: "high",
+        operationalRecovery: "very_low",
+        verification: "very_low",
+      },
+      confidence: 0.99,
+      findings: [],
+      policy: calculatePolicyAssessment([file("docs/guide.md")]),
+      minimumConfidence: 0.9,
+    });
+    expect(result).toMatchObject({ dimensionPeak: "high", band: "high" });
   });
 });

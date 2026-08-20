@@ -4,7 +4,7 @@ import type { PullRequestFile } from "./types";
 export const RISK_CALIBRATION = {
   version: POLICY_VERSION,
   directive:
-    "Rescore from the current diff using this calibration. It supersedes prior-session scores; never preserve an old dimension score merely because the code is unchanged when the policy changed.",
+    "Reassess the current diff using this calibration. It supersedes prior-session ratings; never preserve an old rating merely because the code is unchanged when the policy changed.",
   principle:
     "Risk measures consequence, blast radius, and recoverability. Diff reviewability, human-only paths, confidence, and approval eligibility are separate deterministic gates.",
   low: [
@@ -21,19 +21,18 @@ export const RISK_CALIBRATION = {
     "billing, entitlement, subscription, identity, or customer-communication mutations",
     "schemas, migrations, backfills, destructive operations, workflow or infrastructure changes, and difficult recovery",
   ],
-  internalReadOnlyReportCeilings: {
-    changeSurface: 5,
-    blastRadius: 3,
-    reversibility: 2,
-    dataSecurity: 4,
-    operationalRisk: 4,
-    verificationGap: 3,
+  internalReadOnlyReportProfile: {
+    changeComplexity: "low",
+    blastRadius: "very_low",
+    dataSecurity: "low",
+    operationalRecovery: "low",
+    verification: "low",
   },
   notes: [
     "Reading sensitive business data is not equivalent to mutating it.",
-    "A bounded fail-soft external read normally scores 1-4 for operational risk.",
+    "A bounded fail-soft external read is normally very low or low for operational/recovery risk.",
     "Diff size never sets the risk band; oversized reviewable diffs separately require a human.",
-    "Exceed an archetype ceiling only for a concrete consequence or finding, and explain that evidence.",
+    "Rate above an archetype profile only for a concrete consequence or finding, and explain that evidence.",
   ],
 } as const;
 

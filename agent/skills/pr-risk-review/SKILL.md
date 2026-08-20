@@ -1,6 +1,6 @@
 ---
 name: pr-risk-review
-description: Review a GitHub pull request, assign its final 0-100 engineering risk score, and approve only a code-eligible low-risk result.
+description: Review a GitHub pull request, rate five engineering risk areas from very low to high, aggregate the overall risk, and approve only an eligible very-low or low-risk result.
 ---
 
 # PR risk review
@@ -13,11 +13,11 @@ Use this procedure for every automated PR-risk turn and whenever a human asks fo
 2. Run `git rev-parse HEAD` in the sandbox and require it to equal the head SHA from the risk context. If the checkout is missing or mismatched, do not approve.
 3. Read the changed files and relevant surrounding code in the sandbox checkout.
 4. Judge risk by likely consequence, blast radius, and recoverability—not by line count or sensitive-sounding nouns alone. Reading sensitive data in an internal report is not equivalent to mutating it.
-5. Apply the baseline calibration below, then score the six dimensions using `references/scoring.md`.
+5. Apply the baseline calibration below, then rate the five areas using `references/scoring.md`.
 6. Report concrete findings. A medium finding must force at least medium risk; a high finding must force high risk.
-7. Call `submit_pr_risk_decision` with the reviewed head SHA. The tool recomputes the final score, re-reads GitHub, and deterministically chooses APPROVE, REQUEST CHANGES, or NEEDS HUMAN.
+7. Call `submit_pr_risk_decision` with the reviewed head SHA. The tool aggregates the overall risk, re-reads GitHub, and deterministically chooses APPROVE, REQUEST CHANGES, or NEEDS HUMAN.
 
-Do not lower a score to make a PR approvable. Do not treat green CI as proof of low risk. Do not treat a docs-only title as proof that the diff is docs-only.
+Do not lower a rating to make a PR approvable. Do not treat green CI as proof of low risk. Do not treat a docs-only title as proof that the diff is docs-only.
 
 ## Baseline calibration
 

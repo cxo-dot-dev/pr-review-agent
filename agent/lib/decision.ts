@@ -50,7 +50,9 @@ export function evaluateApprovalDecision(input: {
       (reason) => `autonomous reviewability limit: ${reason}`,
     ),
   );
-  if (input.finalRisk.band !== "low") blockers.push(`risk is ${input.finalRisk.band}, not low`);
+  if (input.finalRisk.band === "medium" || input.finalRisk.band === "high") {
+    blockers.push(`risk is ${input.finalRisk.band}, not low`);
+  }
   if (input.confidence < input.minimumConfidence) blockers.push("assessment confidence is below policy");
   const hasBlockingFinding = input.findings.some((finding) => finding.severity !== "low");
   if (hasBlockingFinding) {

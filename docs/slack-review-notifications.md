@@ -4,7 +4,7 @@ After an exact-SHA decision is published to GitHub, the agent can post a concise
 
 All configured reviewers are mentioned for reviewer-ready PRs. Low-risk PRs that passed every approval gate are labeled **Bot approved — human approval still required**. Clean changes that are not bot-eligible are labeled **Human review required**. PRs with substantive findings receive `REQUEST CHANGES` on GitHub and are not sent to the reviewer-ready channel until the findings are fixed.
 
-Every message includes the PR link, author, one-sentence summary, final risk score and band, check status, and next action. A deterministic client message ID derived from policy version, repository, PR number, and head SHA makes repeat delivery idempotent.
+Every message includes the PR link, author, one-sentence summary, overall categorical risk, check status, and next action. A deterministic client message ID derived from policy version, repository, PR number, and head SHA makes repeat delivery idempotent.
 
 ## Configuration
 

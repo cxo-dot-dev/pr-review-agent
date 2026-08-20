@@ -81,7 +81,7 @@ export default githubChannel({
     },
     async "turn.completed"(_data, channel) {
       // CI- and PR-event reviews have no triggering comment. Retire those sessions
-      // after every completed turn so the next head/policy review cannot inherit scores.
+      // after every completed turn so the next head/policy review cannot inherit ratings.
       if (channel.state.triggeringCommentId === null && channel.state.reviewCommentId === null) {
         retireRiskReviewSession(channel);
       }

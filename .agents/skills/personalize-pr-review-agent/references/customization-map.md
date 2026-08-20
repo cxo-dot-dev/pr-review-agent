@@ -17,7 +17,7 @@ Use this checklist to translate repository evidence into PR Review Agent configu
 | Team confidence tolerance | `ENG_AGENT_MIN_CONFIDENCE` | Below-threshold result becomes `NEEDS HUMAN`, not higher risk |
 | Slack destination and reviewer IDs | Slack environment variables | Blank channel disables delivery; configured delivery is idempotent |
 
-Keep `agent/skills/pr-risk-review/references/scoring.md`, `agent/lib/risk-calibration.ts`, tests, and `docs/risk-policy.md` consistent whenever scoring semantics change. Bump `POLICY_VERSION` for a deployed policy change so old exact-SHA assessments cannot be mistaken for current ones.
+Keep `agent/skills/pr-risk-review/references/scoring.md`, `agent/lib/risk-calibration.ts`, tests, and `docs/risk-policy.md` consistent whenever rating or aggregation semantics change. Bump `POLICY_VERSION` for a deployed policy change so old exact-SHA assessments cannot be mistaken for current ones.
 
 ## Implementation locations
 

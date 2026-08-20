@@ -68,7 +68,7 @@ export function renderSlackReviewNotification(
       assignment,
       `<${url}|${label}> by \`@${escapeSlackText(author)}\``,
       `*TL;DR:* ${escapeSlackText(singleLine(summary))}`,
-      `*Risk:* ${finalRisk.score}/100 ${titleCase(finalRisk.band)} · checks green`,
+      `*Risk:* ${titleCase(finalRisk.band)} · checks green`,
       `*Blocked by:* ${blockedBy}`,
       `*Next step:* ${escapeSlackText(guidance.primary.nextStep)}`,
     ].join("\n");
@@ -80,7 +80,7 @@ export function renderSlackReviewNotification(
       assignment,
       `<${url}|${label}> by \`@${escapeSlackText(author)}\``,
       `*TL;DR:* ${escapeSlackText(singleLine(summary))}`,
-      `*Risk:* ${finalRisk.score}/100 ${titleCase(finalRisk.band)} · checks green`,
+      `*Risk:* ${titleCase(finalRisk.band)} · checks green`,
       `*Why ${titleCase(finalRisk.band)}:* ${riskBandExplanation(finalRisk.band)}`,
       `*Next step:* ${escapeSlackText(APPROVE_HANDOFF.nextStep)}`,
     ].join("\n");
@@ -91,7 +91,7 @@ export function renderSlackReviewNotification(
     assignment,
     `<${url}|${label}> by \`@${escapeSlackText(author)}\``,
     `*TL;DR:* ${escapeSlackText(singleLine(summary))}`,
-    `*Risk:* ${finalRisk.score}/100 ${titleCase(finalRisk.band)} · checks green`,
+    `*Risk:* ${titleCase(finalRisk.band)} · checks green`,
     `*Why ${titleCase(finalRisk.band)}:* ${riskBandExplanation(finalRisk.band)}`,
     `PR Review Agent requested changes: ${decision.blockers.join(" · ")}.`,
   ].join("\n");
@@ -160,6 +160,7 @@ function singleLine(value: string): string {
 }
 
 function riskBandExplanation(band: FinalRisk["band"]): string {
+  if (band === "very_low") return "Minimal consequence and immediate recovery.";
   if (band === "low") return "Contained and readily reversible.";
   if (band === "medium") {
     return "Meaningful behavior can regress, but rollback is straightforward.";
@@ -168,5 +169,6 @@ function riskBandExplanation(band: FinalRisk["band"]): string {
 }
 
 function titleCase(value: string): string {
-  return `${value.charAt(0).toUpperCase()}${value.slice(1).toLowerCase()}`;
+  const words = value.toLowerCase().split("_");
+  return words.map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`).join(" ");
 }

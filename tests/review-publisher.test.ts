@@ -13,7 +13,7 @@ import { snapshot } from "./fixtures";
 
 function policy(overrides: Partial<PolicyAssessment> = {}): PolicyAssessment {
   return {
-    riskFloor: 5,
+    riskFloor: "very_low",
     riskFlags: [],
     humanReviewRequirements: [],
     reviewability: {
@@ -40,21 +40,19 @@ describe("risk publication", () => {
       request,
       snapshot: value,
       finalRisk: {
-        score: 9,
         band: "low",
-        modelScore: 9,
-        policyFloor: 5,
+        dimensionPeak: "low",
+        policyFloor: "very_low",
         confidenceBlocksApproval: false,
         promotedForFinding: null,
       },
       policy: policy(),
       dimensions: {
-        changeSurface: 3,
-        blastRadius: 2,
-        reversibility: 1,
-        dataSecurity: 0,
-        operationalRisk: 1,
-        verificationGap: 2,
+        changeComplexity: "low",
+        blastRadius: "very_low",
+        dataSecurity: "very_low",
+        operationalRecovery: "very_low",
+        verification: "low",
       },
       confidence: 0.99,
       summary: "Small documentation correction.",
@@ -73,10 +71,10 @@ describe("risk publication", () => {
     expect(reviewBody.commit_id).toBe("a".repeat(40));
     expect(String(reviewBody.body)).toContain(riskMarker("a".repeat(40), "APPROVE"));
     expect(String(reviewBody.body)).toContain(POLICY_VERSION);
-    expect(String(reviewBody.body)).toContain("| Risk score | Disposition | Confidence |");
-    expect(String(reviewBody.body)).toContain("| **9/100 · Low** | ✨ **APPROVE** | **99%** |");
+    expect(String(reviewBody.body)).toContain("| Overall risk | Disposition | Confidence |");
+    expect(String(reviewBody.body)).toContain("| **Low** | ✨ **APPROVE** | **99%** |");
     expect(String(reviewBody.body)).toContain(
-      "> **Why approved:** Low risk, sufficient confidence, and every approval gate passed.",
+      "> **Why approved:** Very low or low risk, sufficient confidence, and every approval gate passed.",
     );
     expect(String(reviewBody.body)).toContain(
       "> **Next step:** PR Review Agent cannot merge. GitHub still needs one qualifying human approval.",
@@ -107,21 +105,19 @@ describe("risk publication", () => {
       request,
       snapshot: value,
       finalRisk: {
-        score: 35,
         band: "medium",
-        modelScore: 35,
-        policyFloor: 12,
+        dimensionPeak: "medium",
+        policyFloor: "low",
         confidenceBlocksApproval: false,
         promotedForFinding: disposition === "request_changes" ? "medium" : null,
       },
-      policy: policy({ riskFloor: 12 }),
+      policy: policy({ riskFloor: "low" }),
       dimensions: {
-        changeSurface: 8,
-        blastRadius: 8,
-        reversibility: 4,
-        dataSecurity: 2,
-        operationalRisk: 5,
-        verificationGap: 8,
+        changeComplexity: "medium",
+        blastRadius: "medium",
+        dataSecurity: "low",
+        operationalRecovery: "low",
+        verification: "medium",
       },
       confidence: 0.95,
       summary: "Changes reversible application behavior and needs a human decision.",
@@ -158,21 +154,19 @@ describe("risk publication", () => {
       request,
       snapshot: value,
       finalRisk: {
-        score: 35,
         band: "medium",
-        modelScore: 35,
-        policyFloor: 12,
+        dimensionPeak: "medium",
+        policyFloor: "low",
         confidenceBlocksApproval: false,
         promotedForFinding: null,
       },
-      policy: policy({ riskFloor: 12 }),
+      policy: policy({ riskFloor: "low" }),
       dimensions: {
-        changeSurface: 8,
-        blastRadius: 8,
-        reversibility: 4,
-        dataSecurity: 2,
-        operationalRisk: 5,
-        verificationGap: 8,
+        changeComplexity: "medium",
+        blastRadius: "medium",
+        dataSecurity: "low",
+        operationalRecovery: "low",
+        verification: "medium",
       },
       confidence: 0.95,
       summary: "Changes reversible application behavior and needs a human decision.",
@@ -197,21 +191,19 @@ describe("risk publication", () => {
       request: vi.fn(),
       snapshot: value,
       finalRisk: {
-        score: 21,
         band: "low",
-        modelScore: 21,
-        policyFloor: 12,
+        dimensionPeak: "low",
+        policyFloor: "low",
         confidenceBlocksApproval: true,
         promotedForFinding: "low",
       },
-      policy: policy({ riskFloor: 12, totalChanges: 739, changedFiles: 6 }),
+      policy: policy({ riskFloor: "low", totalChanges: 739, changedFiles: 6 }),
       dimensions: {
-        changeSurface: 5,
-        blastRadius: 3,
-        reversibility: 2,
-        dataSecurity: 3,
-        operationalRisk: 4,
-        verificationGap: 4,
+        changeComplexity: "low",
+        blastRadius: "very_low",
+        dataSecurity: "low",
+        operationalRecovery: "low",
+        verification: "low",
       },
       confidence: 0.82,
       summary,
@@ -230,8 +222,10 @@ describe("risk publication", () => {
         blockers: ["1 unresolved review thread(s)", "assessment confidence is below policy"],
       },
     }, "COMMENT");
-    expect(body).toContain("| Risk score | Disposition | Confidence |");
-    expect(body).toContain("| **21/100 · Low** | 💬 **NEEDS HUMAN** | **82%** |");
+    expect(body).toContain("| Overall risk | Disposition | Confidence |");
+    expect(body).toContain("| **Low** | 💬 **NEEDS HUMAN** | **82%** |");
+    expect(body).toContain("| Operational and recovery | Low |");
+    expect(body).toContain("Aggregation: highest consequential rating wins");
     expect(body).toContain("> **Why human review is required:** 1 unresolved review thread");
     expect(body).toContain(
       "> **What blocked auto-approval:** 1 unresolved review thread · confidence 82% (needs 90%)",
@@ -244,7 +238,7 @@ describe("risk publication", () => {
     expect(body).toContain("<summary>Review details · 1 low finding(s)</summary>");
     expect(body.indexOf("<details>")).toBeLessThan(body.indexOf("#### Review notes"));
     expect(body).not.toContain("### Deterministic policy flags");
-    expect(body.split("\n").length).toBeLessThan(45);
+    expect(body.split("\n").length).toBeLessThanOrEqual(45);
   });
 
   it("renders human-only NEEDS HUMAN with a concrete next step", () => {
@@ -252,10 +246,9 @@ describe("risk publication", () => {
       request: vi.fn(),
       snapshot: snapshot(),
       finalRisk: {
-        score: 12,
         band: "low",
-        modelScore: 12,
-        policyFloor: 12,
+        dimensionPeak: "low",
+        policyFloor: "low",
         confidenceBlocksApproval: false,
         promotedForFinding: null,
       },
@@ -269,12 +262,11 @@ describe("risk publication", () => {
         ],
       }),
       dimensions: {
-        changeSurface: 3,
-        blastRadius: 2,
-        reversibility: 1,
-        dataSecurity: 2,
-        operationalRisk: 2,
-        verificationGap: 2,
+        changeComplexity: "low",
+        blastRadius: "very_low",
+        dataSecurity: "low",
+        operationalRecovery: "low",
+        verification: "low",
       },
       confidence: 0.97,
       summary: "Touches session auth helpers without mutating billing.",

@@ -6,19 +6,22 @@ The agent:
 
 - waits for your required checks to be present and green on the current head SHA;
 - applies deterministic risk floors, human-only path rules, and a separate reviewability gate;
-- scores change surface, blast radius, reversibility, data/security, operations, and verification gap;
-- publishes a 0–100 score and low/medium/high band as a GitHub check and PR review;
+- rates change complexity, blast radius, data/security, operational/recovery risk, and verification as very low, low, medium, or high;
+- aggregates the overall risk from the highest consequential rating, deterministic policy floor, and finding severity;
 - chooses `APPROVE`, `REQUEST CHANGES`, or `NEEDS HUMAN` deterministically;
 - can notify a configured Slack channel after a review decision; and
 - never merges a PR or changes repository rules.
 
 ## Risk model
 
-| Band | Score | Action |
-| --- | ---: | --- |
-| Low | 0–24 | Approve only when every non-risk gate also passes |
-| Medium | 25–64 | Publish the assessment and require human approval |
-| High | 65–100 | Publish the assessment and require human approval |
+| Level | Meaning | Action |
+| --- | --- | --- |
+| Very low | Minimal consequence and immediate recovery | Approve only when every non-risk gate also passes |
+| Low | Contained consequence and straightforward recovery | Approve only when every non-risk gate also passes |
+| Medium | Meaningful impact that needs human judgment | Publish the assessment and require human approval |
+| High | Trust-boundary, broad, durable, or difficult-to-recover impact | Publish the assessment and require human approval |
+
+The overall level is the highest of the five area ratings, any deterministic path-policy floor, and any substantive finding. Risk is deliberately not averaged: a high data/security rating cannot be canceled out by very-low ratings elsewhere.
 
 Risk describes consequence and recoverability. Confidence, required checks, reviewability, human-only paths, and repository gates can require a human without inflating the risk band. See [docs/risk-policy.md](docs/risk-policy.md) for the baseline policy.
 

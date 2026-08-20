@@ -13,12 +13,14 @@ const file = (filename: string) => ({
 describe("risk calibration context", () => {
   it("is versioned and keeps the clean internal-report anchor in low", () => {
     expect(RISK_CALIBRATION.version).toBe(POLICY_VERSION);
-    expect(RISK_CALIBRATION.directive).toContain("supersedes prior-session scores");
-    const ceiling = Object.values(RISK_CALIBRATION.internalReadOnlyReportCeilings).reduce(
-      (sum, value) => sum + value,
-      0,
-    );
-    expect(ceiling).toBeLessThanOrEqual(24);
+    expect(RISK_CALIBRATION.directive).toContain("supersedes prior-session ratings");
+    expect(RISK_CALIBRATION.internalReadOnlyReportProfile).toEqual({
+      changeComplexity: "low",
+      blastRadius: "very_low",
+      dataSecurity: "low",
+      operationalRecovery: "low",
+      verification: "low",
+    });
   });
 
   it("detects documentation and internal-report candidates", () => {

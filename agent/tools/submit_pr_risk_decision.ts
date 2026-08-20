@@ -10,13 +10,14 @@ import { publishRiskAssessment } from "../lib/review-publisher";
 import { githubSessionTarget } from "../lib/session";
 import { notifySlackReviewReady } from "../lib/slack-review-notifier";
 
+const riskLevelSchema = z.enum(["very_low", "low", "medium", "high"]);
+
 const dimensionsSchema = z.object({
-  changeSurface: z.number().int().min(0).max(20),
-  blastRadius: z.number().int().min(0).max(20),
-  reversibility: z.number().int().min(0).max(15),
-  dataSecurity: z.number().int().min(0).max(20),
-  operationalRisk: z.number().int().min(0).max(15),
-  verificationGap: z.number().int().min(0).max(10),
+  changeComplexity: riskLevelSchema,
+  blastRadius: riskLevelSchema,
+  dataSecurity: riskLevelSchema,
+  operationalRecovery: riskLevelSchema,
+  verification: riskLevelSchema,
 });
 
 const findingSchema = z.object({

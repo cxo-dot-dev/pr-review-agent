@@ -10,7 +10,7 @@ describe("risk review session retirement", () => {
     expect(isRiskReviewCompletion("Risk review published.")).toBe(true);
     expect(isRiskReviewCompletion("Risk review published for head SHA `abc123`.")).toBe(true);
     expect(isRiskReviewCompletion("Done.\nRisk review published.")).toBe(true);
-    expect(isRiskReviewCompletion("Risk review complete for head SHA `abc123`.\n\n- Final score: 7/100")).toBe(true);
+    expect(isRiskReviewCompletion("Risk review complete for head SHA `abc123`.\n\n- Overall risk: low")).toBe(true);
     expect(isRiskReviewCompletion("Risk review completed with no findings.")).toBe(true);
     expect(isRiskReviewCompletion("I reviewed the PR.")).toBe(false);
     expect(isRiskReviewCompletion(undefined)).toBe(false);

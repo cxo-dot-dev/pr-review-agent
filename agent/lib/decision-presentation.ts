@@ -2,7 +2,7 @@ import type { ApprovalDecision } from "./decision";
 import type { FinalRisk } from "./risk-policy";
 
 export const APPROVE_HANDOFF = {
-  why: "Low risk, sufficient confidence, and every approval gate passed.",
+  why: "Very low or low risk, sufficient confidence, and every approval gate passed.",
   nextStep: "PR Review Agent cannot merge. GitHub still needs one qualifying human approval.",
 } as const;
 

@@ -1,20 +1,15 @@
-# Risk scoring reference
+# Categorical risk reference
 
-Score each dimension independently. Use the high end when evidence is incomplete.
+Rate each area independently as `very_low`, `low`, `medium`, or `high`.
 
-| Dimension | Range | Meaning |
-| --- | ---: | --- |
-| Change surface | 0–20 | Behavioral breadth, coupling, novelty, and affected components; do not score generated or repetitive lines as equivalent to new behavior |
-| Blast radius | 0–20 | How many users, tenants, workflows, or systems can be affected; internal-only display errors usually score 0–4 |
-| Reversibility | 0–15 | Difficulty of rollback, repair, or recovery; docs, copy, styles, and read-only reports usually score 0–2 |
-| Data and security | 0–20 | Trust-boundary or durable-data consequences; merely reading billing/auth data is not a mutation |
-| Operational risk | 0–15 | Deployment, migrations, queues, concurrency, external side effects, and availability; bounded fail-soft reads usually score 1–4 |
-| Verification gap | 0–10 | Important behavior not convincingly exercised by tests or other evidence |
+| Area | Very low | Low | Medium | High |
+| --- | --- | --- | --- | --- |
+| Change complexity | Static or mechanical | Isolated, familiar behavior | Cross-component or novel behavior | Broad architectural/control-plane change |
+| Blast radius | No runtime users or systems | Narrow audience or workflow | Meaningful product/team surface | Many tenants, systems, or critical workflows |
+| Data and security | No sensitive boundary | Read-only or tightly constrained data | Sensitive handling with bounded consequences | Auth, permissions, privacy breach, corruption, or cross-tenant exposure |
+| Operational and recovery | No operational effect; immediate revert | Bounded side effect; straightforward rollback | Production behavior with understood recovery | Migration, destructive action, duplicated side effects, or difficult recovery |
+| Verification | Direct, convincing coverage | Small understood gap | Important behavior only partly exercised | Critical behavior unverified or evidence unavailable |
 
-The raw model score is the sum, from 0 to 100. Code then applies deterministic floors:
+The tool computes overall risk as the highest of the five ratings, deterministic policy floor, and highest finding severity. Never average the ratings: a high consequence in one area cannot be canceled by low ratings elsewhere.
 
-- Low: 0–24
-- Medium: 25–64
-- High: 65–100
-
-Confidence below 0.90 blocks automatic approval but does not change the risk band. Any medium finding cannot remain low. Any high finding cannot remain below high. Deterministic risk floors cover unmistakable mutation and control-plane surfaces. Diff size never sets the risk band; the separate reviewability gate handles changes too large for reliable autonomous inspection.
+Confidence below 0.90 blocks automatic approval but does not change the risk level. Medium and high findings force at least their own level. Diff size never sets risk; the separate reviewability gate handles changes too large for reliable autonomous inspection.

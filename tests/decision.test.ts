@@ -6,10 +6,9 @@ import type { RiskFinding } from "../agent/lib/types";
 import { snapshot } from "./fixtures";
 
 const lowRisk: FinalRisk = {
-  score: 9,
   band: "low",
-  modelScore: 9,
-  policyFloor: 5,
+  dimensionPeak: "low",
+  policyFloor: "very_low",
   confidenceBlocksApproval: false,
   promotedForFinding: null,
 };
@@ -40,6 +39,15 @@ function decide(
 describe("automatic approval decision", () => {
   it("approves an exact eligible low-risk snapshot", () => {
     expect(decide()).toEqual({ disposition: "approve", blockers: [] });
+  });
+
+  it("also approves a very-low-risk snapshot when every gate passes", () => {
+    const veryLowRisk = {
+      ...lowRisk,
+      band: "very_low",
+      dimensionPeak: "very_low",
+    } as const;
+    expect(decide(snapshot(), [], veryLowRisk)).toEqual({ disposition: "approve", blockers: [] });
   });
 
   it("blocks unresolved or unverifiable review threads", () => {
@@ -93,7 +101,7 @@ describe("automatic approval decision", () => {
 
   it("requires changes for a substantive finding instead of escalating a clean risk decision", () => {
     const finding = { severity: "medium", title: "Broken path", body: "This fails for active users." } as const;
-    const mediumRisk = { ...lowRisk, score: 30, band: "medium", promotedForFinding: "medium" } as const;
+    const mediumRisk = { ...lowRisk, band: "medium", promotedForFinding: "medium" } as const;
 
     expect(decide(snapshot(), [finding], mediumRisk)).toMatchObject({
       disposition: "request_changes",

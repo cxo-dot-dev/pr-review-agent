@@ -151,7 +151,7 @@ export function renderReviewBody(input: PublishRiskInput, event: ReviewEvent): s
     ? visibleFindings.map(renderFinding).join("\n")
     : "- No material findings.";
   const flags = policy.riskFlags.length
-    ? policy.riskFlags.map((flag) => `${clean(flag.reason)} (floor ${flag.scoreFloor})`).join(" · ")
+    ? policy.riskFlags.map((flag) => `${clean(flag.reason)} (floor ${titleCase(flag.levelFloor)})`).join(" · ")
     : "None";
   const humanOnly = policy.humanReviewRequirements.length
     ? policy.humanReviewRequirements.map((requirement) => clean(requirement.reason)).join(" · ")
@@ -179,9 +179,9 @@ export function renderReviewBody(input: PublishRiskInput, event: ReviewEvent): s
   const dispositionRationale = renderDispositionRationale(event, input);
 
   return [
-    "| Risk score | Disposition | Confidence |",
+    "| Overall risk | Disposition | Confidence |",
     "| :-- | :-- | --: |",
-    `| **${finalRisk.score}/100 · ${titleCase(finalRisk.band)}** | ${disposition} | **${(input.confidence * 100).toFixed(0)}%** |`,
+    `| **${titleCase(finalRisk.band)}** | ${disposition} | **${(input.confidence * 100).toFixed(0)}%** |`,
     "",
     ...dispositionRationale,
     "",
@@ -202,11 +202,17 @@ export function renderReviewBody(input: PublishRiskInput, event: ReviewEvent): s
     ...(extraFindingCount > 0
       ? ["#### Additional findings", "", orderedFindings.slice(4).map(renderFinding).join("\n"), ""]
       : []),
-    "#### Scoring",
+    "#### Risk profile",
     "",
-    `- Model ${finalRisk.modelScore} · policy floor ${finalRisk.policyFloor} · final ${finalRisk.score}`,
-    `- Surface ${dimensions.changeSurface}/20 · blast radius ${dimensions.blastRadius}/20 · reversibility ${dimensions.reversibility}/15`,
-    `- Data/security ${dimensions.dataSecurity}/20 · operations ${dimensions.operationalRisk}/15 · verification gap ${dimensions.verificationGap}/10`,
+    "| Area | Rating |",
+    "| --- | --- |",
+    `| Change complexity | ${titleCase(dimensions.changeComplexity)} |`,
+    `| Blast radius | ${titleCase(dimensions.blastRadius)} |`,
+    `| Data and security | ${titleCase(dimensions.dataSecurity)} |`,
+    `| Operational and recovery | ${titleCase(dimensions.operationalRecovery)} |`,
+    `| Verification | ${titleCase(dimensions.verification)} |`,
+    "",
+    `- Aggregation: highest consequential rating wins · dimension peak ${titleCase(finalRisk.dimensionPeak)} · policy floor ${titleCase(finalRisk.policyFloor)} · overall ${titleCase(finalRisk.band)}`,
     "",
     "#### Policy and gates",
     "",
@@ -255,23 +261,22 @@ export function renderCheckOutput(input: PublishRiskInput, event: ReviewEvent) {
   const dimensions = input.dimensions;
   const decision = dispositionLabel(event);
   const text = [
-    `| Dimension | Score |`,
-    `| --- | ---: |`,
-    `| Change surface | ${dimensions.changeSurface}/20 |`,
-    `| Blast radius | ${dimensions.blastRadius}/20 |`,
-    `| Reversibility | ${dimensions.reversibility}/15 |`,
-    `| Data and security | ${dimensions.dataSecurity}/20 |`,
-    `| Operational risk | ${dimensions.operationalRisk}/15 |`,
-    `| Verification gap | ${dimensions.verificationGap}/10 |`,
+    `| Risk area | Rating |`,
+    `| --- | --- |`,
+    `| Change complexity | ${titleCase(dimensions.changeComplexity)} |`,
+    `| Blast radius | ${titleCase(dimensions.blastRadius)} |`,
+    `| Data and security | ${titleCase(dimensions.dataSecurity)} |`,
+    `| Operational and recovery | ${titleCase(dimensions.operationalRecovery)} |`,
+    `| Verification | ${titleCase(dimensions.verification)} |`,
     "",
-    `Model score: ${input.finalRisk.modelScore}. Deterministic floor: ${input.finalRisk.policyFloor}.`,
+    `Overall risk: ${titleCase(input.finalRisk.band)}. Dimension peak: ${titleCase(input.finalRisk.dimensionPeak)}. Deterministic floor: ${titleCase(input.finalRisk.policyFloor)}.`,
     `Bot disposition: ${decision}. Confidence: ${(input.confidence * 100).toFixed(0)}%.`,
     `Reviewability: ${input.policy.reviewability.sufficient ? "sufficient" : "insufficient"}. Human-only surfaces: ${input.policy.humanReviewRequirements.length}.`,
     `Policy: ${POLICY_VERSION}. Commit: ${input.snapshot.pullRequest.head.sha}.`,
   ].join("\n");
 
   return {
-    title: `Risk ${input.finalRisk.score}/100 (${input.finalRisk.band.toUpperCase()}) · ${decision}`,
+    title: `Risk ${titleCase(input.finalRisk.band)} · ${decision}`,
     summary: singleLine(input.summary),
     text,
   };
@@ -371,7 +376,8 @@ function dispositionLabel(event: ReviewEvent): string {
 }
 
 function titleCase(value: string): string {
-  return `${value.charAt(0).toUpperCase()}${value.slice(1).toLowerCase()}`;
+  const words = value.toLowerCase().split("_");
+  return words.map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`).join(" ");
 }
 
 function compact(value: string, maximum: number): string {

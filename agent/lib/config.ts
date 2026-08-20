@@ -1,4 +1,4 @@
-export const POLICY_VERSION = "2026-08-03.1";
+export const POLICY_VERSION = "2026-08-20.1";
 export const REVIEW_SUMMARY_MAX_LENGTH = 180;
 export const RISK_CHECK_NAME = "PR Review Agent / risk";
 export const RISK_MARKER_PREFIX = "<!-- pr-review-agent:risk";

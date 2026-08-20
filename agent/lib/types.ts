@@ -1,13 +1,13 @@
-export type RiskBand = "low" | "medium" | "high";
+export type RiskLevel = "very_low" | "low" | "medium" | "high";
+export type RiskBand = Exclude<RiskLevel, "very_low">;
 export type FindingSeverity = RiskBand;
 
 export interface RiskDimensions {
-  changeSurface: number;
-  blastRadius: number;
-  reversibility: number;
-  dataSecurity: number;
-  operationalRisk: number;
-  verificationGap: number;
+  changeComplexity: RiskLevel;
+  blastRadius: RiskLevel;
+  dataSecurity: RiskLevel;
+  operationalRecovery: RiskLevel;
+  verification: RiskLevel;
 }
 
 export interface RiskFinding {
