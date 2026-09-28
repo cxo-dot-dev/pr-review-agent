@@ -2,6 +2,8 @@
 
 An open-source, self-hosted engineering agent that reviews GitHub pull requests by risk. It runs on [Eve](https://eve.dev) and Vercel, receives signed GitHub App webhooks through Vercel Connect, checks out the exact PR head in an isolated Vercel Sandbox, and publishes an auditable review.
 
+> **Use at your own risk.** This software is provided “as is,” without warranty of any kind, as described in the [MIT license](LICENSE). Automated reviews can miss defects or produce incorrect findings; an approval is not a guarantee of correctness or security. Validate the agent for your repositories and retain appropriate human review and repository protections.
+
 The agent:
 
 - waits for your required checks to be present and green on the current head SHA;
@@ -51,6 +53,8 @@ ENG_AGENT_REQUIRED_CHECKS=lint,test
 
 Repository names and required check names must match GitHub exactly. The default repository allowlist is empty, so an unconfigured deployment does not start automatic reviews. Keep neutral and skipped check allowlists empty unless you have explicitly decided those conclusions are safe.
 
+For multiple repositories, use `ENG_AGENT_REPOSITORY_POLICIES` to override branches, checks, and confidence by repository while retaining the explicit activation allowlist. See [.env.example](.env.example) and the [dogfooding guide](docs/dogfooding.md#map-ci-before-enabling-reviews). Keep private repository settings in Vercel environment variables.
+
 To tailor path rules, review thresholds, check names, Slack routing, and agent instructions to your stack, invoke the included [`personalize-pr-review-agent` skill](.agents/skills/personalize-pr-review-agent/SKILL.md):
 
 ```text
@@ -65,17 +69,17 @@ Run all commands from this repository root so Vercel Connect can attach connecto
 ### 1. Link the Vercel project
 
 ```bash
-npx eve link --project pr-review-agent --team your-vercel-team
+npx eve link
 ```
 
-If the project already exists, select it when prompted. Confirm the generated `.vercel/project.json` points to the intended project and team; `.vercel/` is intentionally ignored.
+Select the intended Vercel team and create or select the project when prompted. `eve link` requires an interactive terminal. Confirm the generated `.vercel/project.json` points to the intended project and team; `.vercel/` is intentionally ignored.
 
 ### 2. Create and attach the GitHub connector
 
 ```bash
-vercel connect create github
+vercel connect create github --triggers
 vercel connect list
-vercel connect attach <github-connector-id>
+vercel connect attach <github-connector-id> --environment production --triggers --trigger-path /eve/v1/github
 ```
 
 Complete the browser flow, choose a stable UID such as `github/pr-review-agent`, and install the managed GitHub App only on the repositories the agent should read. Configure its permissions and webhook events from [docs/github-app.md](docs/github-app.md), then set:
@@ -125,8 +129,10 @@ Invite the Slack app to the destination channel and set the connector UID and ch
 
 ```bash
 npm run check
-npx eve deploy --project pr-review-agent --team your-vercel-team
+npx eve deploy
 ```
+
+`eve deploy` deploys to Production using the linked project and team.
 
 After deployment:
 
@@ -137,6 +143,8 @@ After deployment:
 5. If Slack is enabled, confirm exactly one reviewer-ready message appears for that SHA.
 
 A healthy endpoint proves the service is running; the disposable PR is the acceptance test for connector permissions, event delivery, sandbox checkout, policy evaluation, and GitHub writes.
+
+For a first-repository pilot, follow the [dogfooding guide](docs/dogfooding.md) to map CI checks, exercise the canary cases, and stop the rollout if needed.
 
 ## Local verification
 
@@ -153,6 +161,10 @@ npm run eval
 ## Security boundary
 
 The GitHub App needs read access to code and write access to pull-request reviews and checks. It does not need contents write, workflows write, administration, deployments write, or merge bypass. The service never changes branch protection and never merges. Repository-enforced stale-review dismissal and required status checks remain the strongest final controls.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, testing, and pull request guidance. Coding agents should also read [AGENTS.md](AGENTS.md).
 
 ## License
 

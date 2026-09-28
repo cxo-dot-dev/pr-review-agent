@@ -99,17 +99,19 @@ export function calculatePolicyAssessment(files: readonly PullRequestFile[]): Po
   const humanReviewRequirements: HumanReviewRequirement[] = [];
   const totalChanges = files.reduce((sum, file) => sum + file.changes, 0);
 
-  const runtimeFiles = files.filter((file) => !isDocumentationOrTest(file.filename));
-  const reviewableFiles = files.filter((file) => !isConstrainedSurface(file.filename));
+  const runtimePaths = [...new Set(files.flatMap(filePaths))].filter(
+    (path) => !isDocumentationOrTest(path),
+  );
+  const reviewableFiles = files.filter((file) => filePaths(file).some((path) => !isConstrainedSurface(path)));
   const reviewableChanges = reviewableFiles.reduce((sum, file) => sum + file.changes, 0);
 
   for (const [reason, pattern] of HIGH_PATH_RULES) {
-    const paths = runtimeFiles.map((file) => file.filename).filter((path) => pattern.test(path));
+    const paths = runtimePaths.filter((path) => pattern.test(path));
     if (paths.length > 0) riskFlags.push({ code: slug(reason), reason, levelFloor: "high", paths });
   }
 
   for (const [reason, pattern] of MEDIUM_PATH_RULES) {
-    const paths = runtimeFiles.map((file) => file.filename).filter((path) => pattern.test(path));
+    const paths = runtimePaths.filter((path) => pattern.test(path));
     if (paths.length > 0) {
       const levelFloor = "medium";
       riskFlags.push({ code: slug(reason), reason, levelFloor, paths });
@@ -117,7 +119,7 @@ export function calculatePolicyAssessment(files: readonly PullRequestFile[]): Po
   }
 
   for (const [reason, pattern] of HUMAN_ONLY_PATH_RULES) {
-    const paths = runtimeFiles.map((file) => file.filename).filter((path) => pattern.test(path));
+    const paths = runtimePaths.filter((path) => pattern.test(path));
     if (paths.length > 0) {
       humanReviewRequirements.push({ code: slug(reason), reason, paths });
     }
@@ -184,9 +186,13 @@ const RISK_LEVEL_WEIGHT: Readonly<Record<RiskLevel, number>> = {
 
 function baseFloor(files: readonly PullRequestFile[]): RiskLevel {
   if (files.length === 0) return "medium";
-  if (files.every((file) => isDocumentation(file.filename))) return "very_low";
-  if (files.every((file) => isConstrainedSurface(file.filename))) return "very_low";
+  if (files.every((file) => filePaths(file).every(isDocumentation))) return "very_low";
+  if (files.every((file) => filePaths(file).every(isConstrainedSurface))) return "very_low";
   return "low";
+}
+
+function filePaths(file: PullRequestFile): string[] {
+  return file.previous_filename ? [file.filename, file.previous_filename] : [file.filename];
 }
 
 function isDocumentation(path: string): boolean {

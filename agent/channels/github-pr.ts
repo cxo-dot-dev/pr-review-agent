@@ -28,6 +28,7 @@ export default githubChannel({
     excludedFiles: ["**/package-lock.json", "**/*.snap", "docs/**/*.html"],
   },
   async onCheckSuite(ctx, suite) {
+    if (!runtimePolicy(ctx.repository.fullName).repositories.includes(ctx.repository.fullName)) return null;
     const pullNumber = suite.pullRequests[0];
     if (!pullNumber || suite.app.slug === botName) return null;
 
@@ -48,6 +49,7 @@ export default githubChannel({
     return eligibleDispatch(ctx, request, pullNumber);
   },
   async onPullRequest(ctx, event) {
+    if (!runtimePolicy(ctx.repository.fullName).repositories.includes(ctx.repository.fullName)) return null;
     const sha = event.headSha ?? "unknown";
     if (["synchronize", "converted_to_draft", "closed"].includes(event.action)) {
       await invalidateApproval(
@@ -129,7 +131,7 @@ async function loadEligibleRiskTarget(
   request: GitHubRequester,
   pullNumber: number,
 ): Promise<{ snapshot: PullRequestSnapshot; gate: CheckGateResult } | null> {
-  const policy = runtimePolicy();
+  const policy = runtimePolicy(ctx.repository.fullName);
   if (!policy.repositories.includes(ctx.repository.fullName)) return null;
   const snapshot = await loadPullRequestSnapshot(
     request,

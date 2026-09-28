@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { POLICY_VERSION } from "../agent/lib/config";
 import {
+  dismissAgentApprovals,
   publishRiskAssessment,
   renderReviewBody,
   riskExternalId,
@@ -285,5 +286,31 @@ describe("risk publication", () => {
       "> **Next step:** Request review from an owner of this surface; the bot cannot auto-approve these paths.",
     );
     expect(body).not.toContain("**What blocked auto-approval:**");
+  });
+});
+
+
+describe("stale approval dismissal", () => {
+  it("dismisses an agent approval beyond the first page of reviews", async () => {
+    const calls: string[] = [];
+    const request: GitHubRequester = vi.fn(async (method, path) => {
+      calls.push(path);
+      if (method === "PUT") return {} as never;
+      if (path.endsWith("page=1")) {
+        return Array.from({ length: 100 }, (_, index) => ({
+          id: index + 1, state: "COMMENTED", body: "Discussion",
+          user: { login: "reviewer", type: "User" },
+        })) as never;
+      }
+      return [{
+        id: 101, state: "APPROVED", body: riskMarker("b".repeat(40), "APPROVE"),
+        commit_id: "b".repeat(40), user: { login: "review-agent[bot]", type: "Bot" },
+      }] as never;
+    });
+    expect(await dismissAgentApprovals({
+      request, owner: "acme", repo: "example-app", pullNumber: 42,
+      currentSha: "a".repeat(40), includeCurrentSha: false,
+    })).toEqual({ dismissed: 1, failed: [] });
+    expect(calls).toContain("/repos/acme/example-app/pulls/42/reviews/101/dismissals");
   });
 });

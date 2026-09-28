@@ -13,10 +13,13 @@ https://<eng-agent-deployment>/eve/v1/github
 | Metadata | Read | Repository identity |
 | Contents | Read | PR checkout and surrounding-code review |
 | Pull requests | Read and write | Read diffs/reviews and submit COMMENT/APPROVE reviews |
+| Commit statuses | Read | Read CI commit statuses on private repositories |
 | Checks | Read and write | Read CI and publish the risk assessment check |
 | Issues | Read and write | Respond to timeline mentions and post safety warnings |
 
 Do not grant contents write, workflows write, administration, deployments write, or merge bypass.
+
+Review the creation form carefully: its defaults can include broader write access. Remove Actions, deployments, environments, packages, pages, and workflows permissions, and reduce contents and commit statuses to read before creating the app.
 
 ## Webhook events
 

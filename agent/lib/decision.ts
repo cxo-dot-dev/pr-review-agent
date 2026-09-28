@@ -75,7 +75,9 @@ function hasActiveHumanChangeRequest(snapshot: PullRequestSnapshot): boolean {
       !login ||
       (review.user?.type === "Bot" && review.body?.includes("pr-review-agent:risk"))
     ) continue;
-    latest.set(login, review.state.toUpperCase());
+    const state = review.state.toUpperCase();
+    if (state === "COMMENTED" || state === "PENDING") continue;
+    latest.set(login, state);
   }
   return [...latest.values()].some((state) => state === "CHANGES_REQUESTED");
 }

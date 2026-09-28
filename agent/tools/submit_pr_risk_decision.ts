@@ -56,7 +56,7 @@ export default defineTool({
   approval: never(),
   async execute(input, ctx) {
     const target = githubSessionTarget(ctx);
-    const policy = runtimePolicy();
+    const policy = runtimePolicy(target.repository);
     if (!policy.repositories.includes(target.repository)) {
       return { status: "blocked", reason: `Repository ${target.repository} is not allowlisted.` };
     }
