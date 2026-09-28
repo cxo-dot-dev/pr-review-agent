@@ -2,6 +2,8 @@
 
 An open-source, self-hosted engineering agent that reviews GitHub pull requests by risk. It runs on [Eve](https://eve.dev) and Vercel, receives signed GitHub App webhooks through Vercel Connect, checks out the exact PR head in an isolated Vercel Sandbox, and publishes an auditable review.
 
+> **Use at your own risk.** This software is provided “as is,” without warranty of any kind, as described in the [MIT license](LICENSE). Automated reviews can miss defects or produce incorrect findings; an approval is not a guarantee of correctness or security. Validate the agent for your repositories and retain appropriate human review and repository protections.
+
 The agent:
 
 - waits for your required checks to be present and green on the current head SHA;
@@ -159,6 +161,10 @@ npm run eval
 ## Security boundary
 
 The GitHub App needs read access to code and write access to pull-request reviews and checks. It does not need contents write, workflows write, administration, deployments write, or merge bypass. The service never changes branch protection and never merges. Repository-enforced stale-review dismissal and required status checks remain the strongest final controls.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, testing, and pull request guidance. Coding agents should also read [AGENTS.md](AGENTS.md).
 
 ## License
 

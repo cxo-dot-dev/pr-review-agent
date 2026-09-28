@@ -1,5 +1,7 @@
 # Contributor guidance
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, test commands, and pull request expectations.
+
 ## Project layout
 
 This is a public, self-hosted GitHub PR review agent built with TypeScript, Eve, and Vercel.
