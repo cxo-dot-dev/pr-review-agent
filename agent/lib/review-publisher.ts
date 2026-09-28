@@ -1,3 +1,4 @@
+import { listPullRequestReviews } from "./github-api";
 import { formatNeedsHumanGuidance } from "./blocker-guidance";
 import { POLICY_VERSION, RISK_CHECK_NAME, RISK_MARKER_PREFIX } from "./config";
 import type { ApprovalDecision } from "./decision";
@@ -5,7 +6,6 @@ import { APPROVE_HANDOFF, decisionEmoji } from "./decision-presentation";
 import type { FinalRisk, PolicyAssessment } from "./risk-policy";
 import type {
   GitHubRequester,
-  PullRequestReview,
   PullRequestSnapshot,
   RiskDimensions,
   RiskEvidence,
@@ -98,10 +98,7 @@ export async function dismissAgentApprovals(input: {
   includeCurrentSha: boolean;
 }): Promise<{ dismissed: number; failed: readonly number[] }> {
   const prefix = `/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}`;
-  const reviews = await input.request<PullRequestReview[]>(
-    "GET",
-    `${prefix}/pulls/${input.pullNumber}/reviews?per_page=100`,
-  );
+  const reviews = await listPullRequestReviews(input.request, prefix, input.pullNumber);
   const candidates = reviews.filter(
     (review) =>
       review.user?.type === "Bot" &&

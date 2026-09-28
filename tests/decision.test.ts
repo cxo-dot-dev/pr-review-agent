@@ -99,6 +99,16 @@ describe("automatic approval decision", () => {
     expect(decide(value).disposition).toBe("approve");
   });
 
+  it.each(["COMMENTED", "PENDING"])("preserves a change request after a %s review", (state) => {
+    const review = {
+      id: 1, state: "CHANGES_REQUESTED", body: "Please fix the behavior",
+      commit_id: "a".repeat(40), submitted_at: "2026-01-01T00:00:00Z",
+      user: { login: "reviewer", type: "User" },
+    };
+    expect(decide(snapshot({ reviews: [review, { ...review, id: 2, state }] })).blockers)
+      .toContain("an active changes-requested review exists");
+  });
+
   it("requires changes for a substantive finding instead of escalating a clean risk decision", () => {
     const finding = { severity: "medium", title: "Broken path", body: "This fails for active users." } as const;
     const mediumRisk = { ...lowRisk, band: "medium", promotedForFinding: "medium" } as const;

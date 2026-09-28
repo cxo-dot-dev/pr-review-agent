@@ -45,30 +45,60 @@ export async function loadPullRequestSnapshot(
   const pullRequest = await request<PullRequestDetails>("GET", `${prefix}/pulls/${pullNumber}`);
   const sha = pullRequest.head.sha;
 
-  const [files, checkRunsResponse, statusResponse, reviews, reviewThreads] = await Promise.all([
+  const [files, checkRuns, statuses, reviews, reviewThreads] = await Promise.all([
     listFiles(request, prefix, pullNumber, pullRequest.changed_files),
-    request<{ check_runs: CheckRun[] }>(
-      "GET",
-      `${prefix}/commits/${encodeURIComponent(sha)}/check-runs?filter=latest&per_page=100`,
-    ),
-    request<{ statuses: CommitStatus[] }>(
-      "GET",
-      `${prefix}/commits/${encodeURIComponent(sha)}/status?per_page=100`,
-    ),
-    request<PullRequestReview[]>("GET", `${prefix}/pulls/${pullNumber}/reviews?per_page=100`),
+    listPages<CheckRun>(async (page) => {
+      const response = await request<{ check_runs: CheckRun[]; total_count: number }>(
+        "GET", `${prefix}/commits/${encodeURIComponent(sha)}/check-runs?filter=latest&per_page=100&page=${page}`,
+      );
+      return { items: response.check_runs, expected: response.total_count };
+    }),
+    listPages<CommitStatus>(async (page) => {
+      const response = await request<{ statuses: CommitStatus[]; total_count: number }>(
+        "GET", `${prefix}/commits/${encodeURIComponent(sha)}/status?per_page=100&page=${page}`,
+      );
+      return { items: response.statuses, expected: response.total_count };
+    }),
+    listPullRequestReviews(request, prefix, pullNumber),
     loadReviewThreads(request, owner, repo, pullNumber),
   ]);
 
-  return {
-    owner,
-    repo,
-    pullRequest,
-    files,
-    checkRuns: checkRunsResponse.check_runs,
-    statuses: statusResponse.statuses,
-    reviews,
-    reviewThreads,
-  };
+  return { owner, repo, pullRequest, files, checkRuns, statuses, reviews, reviewThreads };
+}
+
+export async function listPullRequestReviews(
+  request: GitHubRequester,
+  prefix: string,
+  pullNumber: number,
+): Promise<PullRequestReview[]> {
+  return listPages(async (page) => ({
+    items: await request<PullRequestReview[]>(
+      "GET", `${prefix}/pulls/${pullNumber}/reviews?per_page=100&page=${page}`,
+    ),
+  }));
+}
+
+async function listPages<T>(
+  getPage: (page: number) => Promise<{ items: T[]; expected?: number }>,
+): Promise<T[]> {
+  const items: T[] = [];
+  let expected: number | undefined;
+  for (let page = 1; page <= 100; page += 1) {
+    const batch = await getPage(page);
+    if (expected !== undefined && batch.expected !== expected) {
+      throw new Error("GitHub collection changed during pagination; retry the review.");
+    }
+    expected = batch.expected;
+    items.push(...batch.items);
+    if (expected !== undefined && items.length === expected) return items;
+    if (batch.items.length < 100) {
+      if (expected !== undefined && items.length !== expected) {
+        throw new Error("GitHub returned an incomplete collection; refusing to review.");
+      }
+      return items;
+    }
+  }
+  throw new Error("GitHub pagination limit reached; refusing to review incomplete data.");
 }
 
 async function listFiles(
@@ -77,16 +107,15 @@ async function listFiles(
   pullNumber: number,
   expected: number,
 ): Promise<PullRequestFile[]> {
-  const files: PullRequestFile[] = [];
-  for (let page = 1; page <= 30 && files.length < expected; page += 1) {
-    const batch = await request<PullRequestFile[]>(
-      "GET",
-      `${prefix}/pulls/${pullNumber}/files?per_page=100&page=${page}`,
-    );
-    files.push(...batch);
-    if (batch.length < 100) break;
+  if (expected > 3_000) {
+    throw new Error("Pull request exceeds GitHub's 3,000-file API limit; human review is required.");
   }
-  return files;
+  return listPages(async (page) => ({
+    items: await request<PullRequestFile[]>(
+      "GET", `${prefix}/pulls/${pullNumber}/files?per_page=100&page=${page}`,
+    ),
+    expected,
+  }));
 }
 
 async function loadReviewThreads(
@@ -96,27 +125,42 @@ async function loadReviewThreads(
   pullNumber: number,
 ): Promise<ReviewThreadSummary> {
   try {
-    const result = await request<{
-      data?: {
-        repository?: {
-          pullRequest?: { reviewThreads?: { nodes?: Array<{ isResolved?: boolean }> } };
-        };
-      };
-      errors?: unknown[];
-    }>("POST", "/graphql", {
-      query: `query ReviewThreads($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          pullRequest(number: $number) {
-            reviewThreads(first: 100) { nodes { isResolved } }
+    let after: string | null = null;
+    let unresolved = 0;
+    const cursors = new Set<string>();
+    for (let page = 0; page < 100; page += 1) {
+      const result: {
+        data?: { repository?: { pullRequest?: { reviewThreads?: {
+          nodes?: Array<{ isResolved?: boolean }>;
+          pageInfo?: { hasNextPage: boolean; endCursor: string | null };
+        } } } };
+        errors?: unknown[];
+      } = await request("POST", "/graphql", {
+        query: `query ReviewThreads($owner: String!, $repo: String!, $number: Int!, $after: String) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $number) {
+              reviewThreads(first: 100, after: $after) {
+                nodes { isResolved }
+                pageInfo { hasNextPage endCursor }
+              }
+            }
           }
-        }
-      }`,
-      variables: { owner, repo, number: pullNumber },
-    });
-    if (result.errors?.length) return { known: false, unresolved: 0 };
-    const nodes = result.data?.repository?.pullRequest?.reviewThreads?.nodes;
-    if (!nodes) return { known: false, unresolved: 0 };
-    return { known: true, unresolved: nodes.filter((node) => node.isResolved !== true).length };
+        }`,
+        variables: { owner, repo, number: pullNumber, after },
+      });
+      const threads = result.data?.repository?.pullRequest?.reviewThreads;
+      if (result.errors?.length || !threads?.nodes ||
+          typeof threads.pageInfo?.hasNextPage !== "boolean") {
+        return { known: false, unresolved };
+      }
+      unresolved += threads.nodes.filter((node) => node.isResolved !== true).length;
+      if (!threads.pageInfo.hasNextPage) return { known: true, unresolved };
+      const cursor = threads.pageInfo.endCursor;
+      if (!cursor || cursors.has(cursor)) return { known: false, unresolved };
+      cursors.add(cursor);
+      after = cursor;
+    }
+    return { known: false, unresolved };
   } catch {
     return { known: false, unresolved: 0 };
   }

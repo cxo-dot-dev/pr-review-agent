@@ -25,6 +25,7 @@ export interface RiskEvidence {
 
 export interface PullRequestFile {
   filename: string;
+  previous_filename?: string;
   status: string;
   additions: number;
   deletions: number;

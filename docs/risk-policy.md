@@ -1,6 +1,6 @@
 # PR risk policy
 
-Policy version `2026-08-20.1` rates five areas as **very low**, **low**, **medium**, or **high**. Risk measures likely consequence, blast radius, and recoverability. It remains separate from reviewability and whether the bot may approve.
+Policy version `2026-09-09.2` rates five areas as **very low**, **low**, **medium**, or **high**. Risk measures likely consequence, blast radius, and recoverability. It remains separate from reviewability and whether the bot may approve.
 
 ## Risk areas
 
@@ -44,6 +44,8 @@ Changed-file and line counts never set the level. They can make autonomous revie
 The baseline requires a human decision for authentication/authorization, permissions, tenant boundaries, secrets, encryption, privacy, billing/payment/identity mutations, migrations, backfills, destructive operations, infrastructure, deployment workflows, and the agent's own approval policy. These requirements cannot be overridden by ratings or confidence.
 
 The included [`personalize-pr-review-agent` skill](../.agents/skills/personalize-pr-review-agent/SKILL.md) helps map these generic rules to your stack's actual paths and priorities.
+
+Renamed files are assessed using both their original and destination paths. Moving sensitive runtime code into a documentation or test directory does not remove its risk floor, human-review requirement, or reviewability cost.
 
 ## Reviewability and automatic approval
 

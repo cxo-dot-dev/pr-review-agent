@@ -18,6 +18,30 @@ const lowDimensions = {
 } as const;
 
 describe("risk policy", () => {
+  it.each(["src/components/session.ts", "docs/session.md", "tests/session.test.ts"])(
+    "preserves sensitive source-path rules when renamed to %s", (filename) => {
+      const policy = calculatePolicyAssessment([{
+        ...file(filename), status: "renamed", previous_filename: "src/auth/session.ts",
+      }]);
+      expect(policy.riskFloor).toBe("medium");
+      expect(policy.humanReviewRequirements).not.toHaveLength(0);
+      expect(policy.reviewability.reviewableFiles).toBe(1);
+    },
+  );
+
+  it("applies destination rules when documentation becomes runtime code", () => {
+    const policy = calculatePolicyAssessment([{
+      ...file("prisma/migrations/new/migration.sql"), status: "renamed", previous_filename: "docs/example.sql",
+    }]);
+    expect(policy.riskFloor).toBe("high");
+    expect(policy.humanReviewRequirements).not.toHaveLength(0);
+  });
+
+  it("keeps documentation renames constrained", () => {
+    expect(calculatePolicyAssessment([{
+      ...file("docs/new.md"), status: "renamed", previous_filename: "docs/old.md",
+    }])).toMatchObject({ riskFloor: "very_low", reviewability: { reviewableFiles: 0 } });
+  });
   it("keeps a small docs-only diff eligible for low risk", () => {
     const policy = calculatePolicyAssessment([file("docs/guide.md")]);
     expect(policy.riskFloor).toBe("very_low");
